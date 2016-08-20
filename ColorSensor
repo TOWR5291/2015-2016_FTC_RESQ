@@ -1,0 +1,235 @@
+/*
+ * Copyright (C) 2015 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+Color Sensor Code by Andrew Haselton
+
+Should be placed in the 'specialStep' function's state machine.
+The color sensor should be connected properly.
+The arm that the sensor is on should be servo3.
+Written for Team 5291 in 2015.
+*/
+
+
+
+
+// color sensor
+// get a reference to the RelativeLayout so we can change the background
+// color of the Robot Controller app to match the hue detected by the RGB sensor.
+String TeamColor = "Red"; //what team is it?
+boolean red = false; //is the red left or not
+static final int COLORLED_CHANNEL = 0;
+static final int REDLED_CHANNEL = 1;
+static final int GREENLED_CHANNEL = 2;
+static final int BLUELED_CHANNEL = 3;
+
+
+Code at bottom:
+
+    System.out.println("ColorSensor code initialized!");
+
+    boolean colorComplete = false;
+
+    final View relativeLayout = ((Activity) hardwareMap.appContext).findViewById(R.id.RelativeLayout);
+
+    // create
+    ColorSensor colorSensorRGB;   //setup variables
+
+    // display color
+    float hsvValues[] = {0F, 0F, 0F};
+
+    // get a reference to our ColorSensor object.
+    colorSensorRGB = hardwareMap.colorSensor.get("color");
+    cdim.setDigitalChannelState(COLORLED_CHANNEL, bEnabled);
+
+
+    //move servo to left side
+    moveServos(37.3,0);
+
+    while (!colorComplete && opModeIsActive()) {
+
+        System.out.println("ColorSensor Loop1 Initalized");
+
+        telemetry.addData("Clear", colorSensorRGB.alpha());
+        telemetry.addData("Red  ", colorSensorRGB.red());
+        telemetry.addData("Green", colorSensorRGB.green());
+        telemetry.addData("Blue ", colorSensorRGB.blue());
+        telemetry.addData("Hue", hsvValues[0]);
+
+        final float values[] = hsvValues;
+
+        relativeLayout.post(new Runnable() {
+            public void run() {
+                relativeLayout.setBackgroundColor(Color.HSVToColor(0xff, values));
+            }
+        });
+
+
+        if (colorSensorRGB.alpha() < 10000) {
+            LEDStatus(true, false, false);
+            LEDStatus(false, true, false);
+            LEDStatus(false, false, true);
+            System.out.println("Error, White Detected");
+        } else {
+
+            if ((colorSensorRGB.blue() > 2000) && (colorSensorRGB.red() > 1000)) {
+                if (colorSensorRGB.blue() < colorSensorRGB.red()) {
+                    //color is red
+                    LEDStatus(true, false, false);
+                    telemetry.addData("Color", "- RED");
+                    red = true;
+
+                    colorComplete = true;
+                } else if (colorSensorRGB.red() < colorSensorRGB.blue()) {
+                    //color is blue
+                    LEDStatus(false, false, true);
+                    telemetry.addData("Color", "- BLUE");
+                    red = false;
+
+                    colorComplete = true;
+                }
+            } else {
+                //color is not red or blue
+                LEDStatus(false, false, false);
+                telemetry.addData("Color", "- NONE");
+            }
+
+        }
+
+    }
+
+
+
+
+
+
+    colorComplete = false;
+    //move servo to right side
+    moveServos((180-37.3),0);
+    try {
+        Thread.sleep(1000);
+    } catch (InterruptedException e) {
+        e.printStackTrace();
+    }
+
+
+    while (!colorComplete && opModeIsActive()) {
+
+        System.out.println("ColorSensor code initialized!");
+
+        telemetry.addData("Clear", colorSensorRGB.alpha());
+        telemetry.addData("Red  ", colorSensorRGB.red());
+        telemetry.addData("Green", colorSensorRGB.green());
+        telemetry.addData("Blue ", colorSensorRGB.blue());
+        telemetry.addData("Hue", hsvValues[0]);
+
+        final float values[] = hsvValues;
+
+        relativeLayout.post(new Runnable() {
+            public void run() {
+                relativeLayout.setBackgroundColor(Color.HSVToColor(0xff, values));
+            }
+        });
+
+        if (colorSensorRGB.alpha() < 10000) {
+            LEDStatus(true, false, false);
+            LEDStatus(false, true, false);
+            LEDStatus(false, false, true);
+            System.out.println("Error, White Detected");
+        } else {
+
+            if ((colorSensorRGB.blue() > 1100) && (colorSensorRGB.red() > 1000)) {
+                if (colorSensorRGB.blue() < colorSensorRGB.red()) {
+                    //color is red
+                    LEDStatus(true, false, false);
+                    telemetry.addData("Color", "- RED");
+                    colorComplete = true;
+                    if (red) {
+                        System.out.println("ERROR IN COLOR SENSOR!!!! BOTH SIDES SCANNED AS RED!!!!");
+                        colorComplete = false;
+                    }
+                } else if (colorSensorRGB.red() < colorSensorRGB.blue()) {
+                    //color is blue
+                    LEDStatus(false, false, true);
+                    telemetry.addData("Color", "- BLUE");
+                    colorComplete = true;
+                    if (!red) {
+                        System.out.println("ERROR IN COLOR SENSOR!!!! BOTH SIDES SCANNED AS BLUE!!!!");
+                        colorComplete = false;
+                    }
+                }
+            } else {
+                //color is not red or blue
+                LEDStatus(false, false, false);
+                telemetry.addData("Color", "- NONE");
+            }
+
+        }
+
+    }
+
+//which side
+    if (red && TeamColor.equals("Red")) { // red left
+        //Button left
+        moveServos(0,0);
+        //Move Forward
+        robotMoveDistance(0.3, 1);
+        //Debug
+        LEDStatus(true, false, false);
+        telemetry.addData("ColorServo", "- RedLeft");
+        System.out.println("Red Left ColorSensor");
+    } else if (!red && TeamColor.equals("Red")) { // red right
+        //Button right
+        moveServos(180,0);
+        //Move Forward
+        robotMoveDistance(0.3, 1);
+        //Debug
+        LEDStatus(false, false, true);
+        System.out.println("Red Right ColorSensor");
+        telemetry.addData("ColorServo", "- RedRight");
+    } else if (red && TeamColor.equals("Blue")) { //blue right
+        //Button right
+        moveServos(180,0);
+        //Move Forward
+        robotMoveDistance(0.3, 1);
+        //Debug
+        LEDStatus(true, false, false);
+        telemetry.addData("ColorServo", "- BlueRight");
+        System.out.println("Blue Right ColorSensor");
+    } else if (!red && TeamColor.equals("Blue")) { //blue left
+        //Button left
+        moveServos(0,0);
+        //Move Forward
+        robotMoveDistance(0.3, 1);
+        //Debug
+        LEDStatus(false, false, true);
+        telemetry.addData("ColorServo", "- BlueLeft");
+        System.out.println("Blue Left ColorSensor");
+    } else { //Error detection
+        //Debug
+        telemetry.addData("ColorServo", "- No If Reached");
+        System.out.println("No If Reached!!!!!!!! ColorSensor");
+    }
+
+
+
+
+
+}
+
+cdim.setDigitalChannelState(COLORLED_CHANNEL, bDisabled);
+
+break;
